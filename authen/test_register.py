@@ -1,21 +1,19 @@
+import os
 import re
+import sys
 import time
 
-import psycopg2
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+import db_connection
+
 website = "http://localhost/auth/register"
 
-# Thông tin kết nối cơ sở dữ liệu
-db = psycopg2.connect(
-    dbname="od-tech-shop-local",
-    user="od-tech-shop-user",
-    password="od-tech-shop-password",
-    host="localhost",
-    port="5432",
-)
+db = db_connection.get_db_connection()
 cursor = db.cursor()
 
 # Initialize WebDriver
@@ -113,7 +111,7 @@ def main():
         ("00000000000", "kimoanh2003", "kimoanh2003"),  # chứa nhiều số giống nhau
         ("089816715", "kimoanh2003", "kimoanh2003"),  # độ dài không đủ
         ("123456789", "kimoanh2003", "kimoanh2003"),  # sai định dạng
-        ("0914406376", "kimoanh2003", "kimoanh2003"),  # đã tồn tại
+        ("0784253460", "kimoanh2003", "kimoanh2003"),  # đã tồn tại
         ("8478526498", "Kimoanh2003@", "Kimoanh2003@"),  # hợp lệ
         # test mật khẩu
         ("0784253466", "12345678", "12345678"),  # chỉ có số
