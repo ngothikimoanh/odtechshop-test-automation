@@ -1,0 +1,14 @@
+.idea
+
+# Python
+.venv
+__pycache__
+
+# Docker
+docker/postgresql/data
+
+# Environment variables
+.env
+
+# Media file
+media/
