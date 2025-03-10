@@ -29,6 +29,7 @@ def is_user_exist(phone_number):
 
 
 def fill_input(field, value):
+    field.clear()
     field.send_keys(value)
     WebDriverWait(driver, 3).until(lambda d: field.get_attribute("value") == value)
     return field.get_attribute("value")
@@ -128,7 +129,7 @@ def main():
         ("0784253466", "P@ssw0rd1", ""),  # bỏ trống
         ("0784253466", "P@ssw0rd1", "L@ssw0rd1"),  # Không khớp
         ## hợp lệ
-        ("0784253466", "P@ssw0rd1", "P@ssw0rd1"),  # hợp lệ
+        ("0784253467", "P@ssw0rd1", "P@ssw0rd1"),  # hợp lệ
     ]
 
     for case in test_cases:
@@ -142,5 +143,4 @@ if __name__ == "__main__":
     finally:
         driver.quit()
         cursor.close()
-        db.close()
         db.close()
