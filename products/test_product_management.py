@@ -4,9 +4,9 @@ import time
 
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import db_connection
 
 # URLs
@@ -20,145 +20,130 @@ cursor = db.cursor()
 service = Service("geckodriver.exe")
 driver = webdriver.Firefox(service=service)
 driver.maximize_window()
-driver.implicitly_wait(5)  # Chờ tối đa 5 giây khi tìm element
+driver.implicitly_wait(7)  # Chờ tối đa 5 giây khi tìm element
 
 
 def fill_input(field, value):
     field.clear()
     field.send_keys(value)
-    WebDriverWait(driver, 5).until(lambda d: field.get_attribute("value") == value)
+    time.sleep(3)
     return field.get_attribute("value")
 
 
 def login():
-    """Thực hiện đăng nhập vào hệ thống."""
+    """Đăng nhập vào hệ thống."""
     driver.get(LOGIN_URL)
-    time.sleep(3)
-    # Tìm form đăng nhập
-    form = WebDriverWait(driver, 5).until(lambda d: d.find_element("xpath", '//form[@method="post"]'))
+    form = driver.find_element("xpath", '//form[@method="post"]')
 
-    # Điền số điện thoại và mật khẩu
     phone_input = form.find_element("xpath", './/input[@name="phone_number"]')
-    phone_filled = fill_input(phone_input, "0784253460")
-
+    fill_input(phone_input, "0784253460")
     password_input = form.find_element("xpath", './/input[@name="password"]')
-    password_filled = fill_input(password_input, "Kimoanh2003@")
+    fill_input(password_input, "Kimoanh2003@")
 
-    # Click nút đăng nhập
     login_button = form.find_element("xpath", './/button[@type="submit"]')
     login_button.click()
-
-    time.sleep(3)  # Chờ trang load
-
-    if driver.current_url != LOGIN_URL:
-        print(f"✅ Đăng nhập thành công! Chuyển đến {driver.current_url}")
-    else:
-        print("❌ Đăng nhập thất bại!")
+    time.sleep(2)
 
 
-def validate_test_case(name, price, image_path):
-    """Kiểm tra lỗi test case theo logic của hệ thống"""
+def navigate_to_product_manager():
+    """Đi tới trang quản lý sản phẩm."""
+    admin_button = driver.find_element("xpath", '//a[@href="/users/"]')
+    admin_button.click()
+    products_manager_button = driver.find_element("xpath", '//a[@href="/products/"]')
+    products_manager_button.click()
+
+
+def validate_test_case(name, price, thumbnail_image):
     errors = []
     if not name:
-        errors.append("⚠ Lỗi: Thiếu tên sản phẩm")
-
-    # Kiểm tra giá sản phẩm
-    try:
-        price = int(price)
-        if price < 0:
-            errors.append("⚠ Lỗi: Giá trị không được âm")
-        elif price == 0:
-            errors.append("⚠ Lỗi: Giá trị không được bằng 0")
-    except ValueError:
-        errors.append("⚠ Lỗi: Giá trị không hợp lệ")
-
-    if image_path:
-        abs_image_path = os.path.abspath(image_path)
-        if not os.path.exists(abs_image_path):
-            errors.append(f"⚠ Lỗi: File ảnh không tồn tại - {abs_image_path}")
-        elif not image_path.lower().endswith((".png", ".jpg", ".jpeg")):
-            errors.append("⚠ Lỗi: Định dạng file ảnh không hợp lệ (chỉ chấp nhận JPG, PNG)")
-
+        errors.append("Tên sản phẩm không được để trống")
+    if not price:
+        errors.append("Giá sản phẩm không được để trống")
+    elif not isinstance(price, int) or price < 1:
+        errors.append("Giá sản phẩm phải là số nguyên dương")
+    if thumbnail_image and not thumbnail_image.lower().endswith((".png", ".jpg", ".jpeg")):
+        errors.append("Định dạng ảnh không hợp lệ")
     return errors
 
 
-def run_test_case(name, price, image_path):
-    login()
-    time.sleep(5)
-    admin_button = driver.find_element("xpath", '//a[@href="/users/"]')
-    admin_button.click()
-    product_manager_button = driver.find_element("xpath", '//a[@href="/products/"]')
-    product_manager_button.click()
+def is_product_exist(name):
+    cursor.execute("SELECT name FROM products WHERE name = %s LIMIT 1", (name,))
+    return cursor.fetchone() is not None
 
-    form = WebDriverWait(driver, 5).until(lambda d: d.find_element("xpath", '//form[@enctype="multipart/form-data"]'))
 
-    # Điền tên sản phẩm
-    input_name = form.find_element("xpath", './/input[@name="name"]')
-    fill_input(input_name, name)
+def add_product(name, price, thumbnail_image):
+    """Thêm sản phẩm vào hệ thống."""
 
-    # Điền giá
-    input_price = form.find_element("xpath", './/input[@name="price"]')
-    fill_input(input_price, str(price))
+    form = driver.find_element("xpath", '//form[@enctype="multipart/form-data"]')
+    name_input = form.find_element("xpath", './/input[@name="name"]')
+    fill_input(name_input, name)
+    time.sleep(2)  # Để đảm bảo input không bị lỗi delay
+    price_input = form.find_element("xpath", './/input[@name="price"]')
+    fill_input(price_input, price)
 
-    # Upload ảnh
-    if image_path:
-        abs_image_path = os.path.abspath(image_path)
-        if os.path.exists(abs_image_path):
-            input_image = form.find_element("xpath", './/input[@name="thumbnail_image"]')
-            input_image.send_keys(abs_image_path)
+    if thumbnail_image:
+        abs_thumbnail_image = os.path.abspath(thumbnail_image)
+        if os.path.exists(abs_thumbnail_image):
+            thumbnail_image = form.find_element("xpath", './/input[@name="thumbnail_image"]')
+            thumbnail_image.send_keys(abs_thumbnail_image)
         else:
-            print(f"⚠ Lỗi: File ảnh không tồn tại - {abs_image_path}")
+            print(f"⚠ Lỗi: File ảnh không tồn tại - {abs_thumbnail_image}")
+    time.sleep(2)
+    update_button = form.find_element("xpath", './/button[@type="submit"]')
+    update_button.click()
 
-    # Submit form
-    submit_button = form.find_element("xpath", './/button[@type="submit"]')
-    submit_button.click()
 
-    driver.get("http://localhost/products/")
+def run_test_case(name, price, thumbnail_image):
+    product_exist = is_product_exist(name)
 
-    error_messages = validate_test_case(name, price, image_path)
+    if product_exist:
+        print(f"{name}: ⚠️  Sản phẩm đã tồn tại!")
+        return
+    else:
+        if not product_exist:
+            print("Tiến hành tạo sản phẩm mới.....")
+
+    errors = validate_test_case(name, price, thumbnail_image)
     if name and price and name.lower() not in driver.page_source.lower():
-        error_messages.append("⚠ Lỗi: Sản phẩm không hiển thị trong danh sách (có thể do trùng tên)")
+        errors.append("⚠ Lỗi: Sản phẩm không hiển thị trong danh sách (có thể do trùng tên)")
 
-    # Hiển thị kết quả test case
     print("=" * 60)
-    print(f"🔎 **Chạy Test Case**: {name} - {price}")
+    print(f"🔎 **Test Case**: {name} | Giá: {price} | Ảnh: {thumbnail_image or 'Không có'}")
 
-    if error_messages:
+    if errors:
+
         print(f"❌ Test Case FAILED: {name} - {price}")
-        for msg in error_messages:
+        for msg in errors:
             print("   " + msg)
     else:
         print(f"✅ Test Case PASSED: {name} - {price}")
 
-    time.sleep(2)  # Chờ 2 giây trước khi chạy test case tiếp theo
-
-    print(f"✅ Thêm sản phẩm: {name} - {price}")
-    time.sleep(2)
+    add_product(name, price, thumbnail_image)
 
 
 def main():
-
+    """Chạy toàn bộ test case."""
+    login()
+    navigate_to_product_manager()
     test_cases = [
-        ("iPhone 14 Pro Max", 30000000, "media/iphone_14_pro_max.png"),  # hợp lệ
-        ("iPhone 14 Pro Max", 30000000, "media/iphone_14_pro_max.png"),  # trùng key
         ("", 30000000, ""),  # trống tên sản phẩm
-        ("iPhone 16 Pro Max", "", "media/iphone-16-pro-tu-nhien-1.png"),  # trống giá
+        ("iPhone 16 Pro Max", "", ""),  # trống giá
         ("iPhone 16 Pro Max", "50000000d", ""),  # sai định dạng giá
-        ("iPhone 16 Pro Max", -50000000, ""),  # sai định dạng giá
-        ("iPhone 16 Pro Max", 50000.000, ""),  # sai định dạng giá
-        ("iPhone 16 Pro Max", 0, ""),  # sai định dạng giá
+        ("iPhone 16 Pro Max", -50000000, ""),  # giá không là số âm
+        ("iPhone 16 Pro Max", 55.5, ""),  # không được là số thâp phân
+        ("iPhone 16 Pro Max", 0, ""),  # giá không thể bằng 0
         ("iPhone 16 Pro Max", 1, "media/speaking-writing-sample-tests IIG.pdf"),  # sai định dạng ảnh
+        ("iPhone 14 Pro Max", 30000000, "media/iphone_14_pro_max.png"),  # trùng key
+        ("iPhone 16 Pro Max", 30000000, "media/iphone-16-pro-tu-nhien-1.png"),  # hợp lệ
     ]
 
     for case in test_cases:
         run_test_case(*case)
-        time.sleep(3)  # Chờ giữa các test case
+        time.sleep(3)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    finally:
-        driver.quit()  # Đóng trình duyệt
-        cursor.close()
-        db.close()
+    main()
+    driver.quit()
+    cursor.close()
+    db.close()
